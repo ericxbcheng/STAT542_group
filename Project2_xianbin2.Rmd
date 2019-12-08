@@ -1,0 +1,124 @@
+---
+title: 'STAT 542 Group Project: Skin Cancer Classification'
+author: "Xianbin Cheng"
+date: "December 1, 2019"
+output: pdf_document
+---
+
+```{r, warning = FALSE, message = FALSE, echo = FALSE}
+library(tidyverse)
+library(imager)
+library(imagerExtra)
+```
+
+```{r}
+# files_benign = dir(path = "D:/STAT542/benign", full.names = TRUE)
+# files_malignant = dir(path = "D:/STAT542/malignant", full.names = TRUE)
+
+# files_benign = dir(path = "C:/Work/STAT542/benign", full.names = TRUE)
+# files_malignant = dir(path = "C:/Work/STAT542/malignant", full.names = TRUE)
+
+files_benign = dir(path = "D:/STAT542/benign", full.names = TRUE)
+files_malignant = dir(path = "D:/STAT542/malignant", full.names = TRUE)
+```
+
+```{r}
+# # imager
+# images_b = map(.x = files_benign, .f = load.image)
+# images_m = map(.x = files_malignant, .f = load.image)
+test = load.image(files_malignant[2])
+test
+```
+
+```{r}
+plot(test)
+```
+
+```{r}
+test2 = resize(im = test, size_x = 600, size_y = 450, size_c = 3)
+test2
+plot(test2)
+```
+
+```{r}
+autocrop(im = test2, color = "black") %>% plot()
+```
+
+```{r}
+# Crop x by 100 both left and right, crop y by 100 both up and down
+crop.borders(im = test2, nx = 100, ny = 100) %>% plot()
+```
+
+
+```{r}
+# histogram normalization
+hist.eq = function(im){
+  as.cimg(obj = ecdf(x = im)(im), dim = dim(im))
+}
+
+cn = imsplit(im = test2, axis = "c")
+cn.eq = map_il(cn, hist.eq)
+test3 = imappend(cn.eq, "c")
+plot(test3)
+```
+
+```{r}
+imsharpen(im = test2, amplitude = 1) %>% plot()
+```
+
+```{r}
+cn2 = imsplit(im = test2, axis = "c")
+cn.balanced = map_il(cn2, BalanceSimplest, sleft = 1, sright = 1)
+imappend(cn.balanced, "c") %>% plot()
+
+```
+
+```{r}
+plot2 = load.image(files_malignant[str_detect(string = files_malignant, pattern = "0010094")])
+plot(plot2)
+```
+
+```{r}
+cn3 = imsplit(im = plot2, axis = "c")
+cn.balanced3 = map_il(cn3, BalanceSimplest, sleft = 1, sright = 1)
+imappend(cn.balanced3, "c") %>% plot()
+```
+
+```{r}
+# Cropping and resizing
+my_crop = function(im, length, width){
+  
+  im_length = dim(im)[1]
+  im_width = dim(im)[2]
+  
+  if(im_length == length & im_width == width){
+    return(im)
+  } else {
+    if(im_length/im_width != length/width){
+      
+      im_length2 = length/width * im_width
+      im2 = crop.borders(im = im, nx = (im_length - im_length2)/2)
+      im3 = resize(im = im2, size_x = length, size_y = width)
+      return(im3)
+      
+    } else {
+      im2 = resize(im = im, size_x = length, size_y = width)
+      return(im2)
+    }
+  }
+}
+
+my_crop(im = load.image(files_malignant[10]), length = 600, width = 450) %>% plot()
+
+for(i in 1:length(files_malignant)){
+  
+  my_crop(im = load.image(files_malignant[i]), length = 600, width = 450) %>% imager::save.image(im = ., file = paste0("D:/STAT542/my/", i, ".jpeg"))
+  
+}
+```
+
+```{r}
+plot3 = load.image(file = files_malignant[5])
+plot3
+```
+
