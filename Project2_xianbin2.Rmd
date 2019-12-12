@@ -15,11 +15,11 @@ library(imagerExtra)
 # files_benign = dir(path = "D:/STAT542/benign", full.names = TRUE)
 # files_malignant = dir(path = "D:/STAT542/malignant", full.names = TRUE)
 
-files_benign = dir(path = "C:/Work/STAT542/benign", full.names = TRUE)
-files_malignant = dir(path = "C:/Work/STAT542/malignant", full.names = TRUE)
+# files_benign = dir(path = "C:/Work/STAT542/benign", full.names = TRUE)
+# files_malignant = dir(path = "C:/Work/STAT542/malignant", full.names = TRUE)
 
-# files_benign = dir(path = "D:/STAT542/benign", full.names = TRUE)
-# files_malignant = dir(path = "D:/STAT542/malignant", full.names = TRUE)
+files_benign = dir(path = "D:/STAT542/benign", full.names = TRUE)
+files_malignant = dir(path = "D:/STAT542/malignant", full.names = TRUE)
 ```
 
 ```{r}
@@ -57,18 +57,18 @@ plot(test)
 ```
 
 ```{r}
-rm_border = function(im, thresh_black, thresh_perc){
+rm_border = function(im, thresh_black, thresh_perc_x, thresh_perc_y){
   
   # Find out which pixels are black
   bool_black = grayscale(im) < thresh_black
   
   # Calculate how many black pixels per row/column. If the proportion of black pixels in a row/column exceeds thresh_perc, remove that row/column
-  rm_pix_x = rowMeans(bool_black) > thresh_perc
-  rm_pix_y = colMeans(bool_black) > thresh_perc
+  rm_pix_x = rowMeans(bool_black) > thresh_perc_x
+  rm_pix_y = colMeans(bool_black) > thresh_perc_y
   return(crop.borders(im = im, nx = sum(rm_pix_x) / 2, ny = sum(rm_pix_y) / 2))
 }
 
-test2 = rm_border(im = test, thresh_black = 0.1, thresh_perc = 0.12) %>% plot()
+test2 = rm_border(im = test, thresh_black = 0.1, thresh_perc_x = 0.6, thresh_perc_y = 0.3) %>% plot()
 ```
 
 ```{r}
@@ -109,26 +109,24 @@ iiply(im = test2, axis = "c", fun = EqualizeADP, range = c(0,1)) %>% plot()
 ```
 
 ```{r}
-cn2 = imsplit(im = test2, axis = "c")
-cn.balanced = map_il(cn2, BalanceSimplest, sleft = 1, sright = 1)
-imappend(cn.balanced, "c") %>% plot()
+# pix to matrix
+pix2vec = function(im){
+  c(as.vector(R(im)), as.vector(G(im)), as.vector(B(im)))
+}
+
+test6 = pix2vec(im = test5)
 ```
 
 ```{r}
-plot2 = load.image(files_malignant[str_detect(string = files_malignant, pattern = "0010094")])
-plot(plot2)
-```
-
-```{r}
-cn3 = imsplit(im = plot2, axis = "c")
-cn.balanced3 = map_il(cn3, BalanceSimplest, sleft = 1, sright = 1)
-imappend(cn.balanced3, "c") %>% plot()
-```
-
-```{r}
+# Preprocessing
 for(i in 1:length(files_malignant)){
   
-  my_crop(im = load.image(files_malignant[i]), length = 600, width = 450) %>% imager::save.image(im = ., file = paste0("D:/STAT542/my_malignant/malignant", i, ".jpeg"))
+  load.image(file = files_malignant[i]) %>%
+      rm_border(im = ., thresh_black = 0.1, thresh_perc_x = 0.2, thresh_perc_y = 0.5) %>%
+      my_crop(im = ., length = 300, width = 225) %>%
+      dilate_square(im = ., size = 3) %>%
+      medianblur(im = ., n = 5) %>%
+      save.image(im = ., file = paste0("D:/STAT542/my_malignant/","malignant", i, ".jpeg"))
   
 }
 ```
