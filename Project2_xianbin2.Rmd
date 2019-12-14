@@ -5,10 +5,18 @@ date: "December 1, 2019"
 output: pdf_document
 ---
 
+# Project Description and Summary
+
 ```{r, warning = FALSE, message = FALSE, echo = FALSE}
 library(tidyverse)
 library(imager)
 library(imagerExtra)
+library(MASS)
+library(caret)
+library(randomForest)
+library(adabag)
+library(kernlab)
+library(stepPlr)
 ```
 
 ```{r}
@@ -22,7 +30,7 @@ files_benign = dir(path = "D:/STAT542/benign", full.names = TRUE)
 files_malignant = dir(path = "D:/STAT542/malignant", full.names = TRUE)
 ```
 
-```{r}
+```{r, echo = FALSE}
 # Cropping and resizing
 my_crop = function(im, length, width){
   
@@ -45,18 +53,8 @@ my_crop = function(im, length, width){
     }
   }
 }
-```
 
-```{r}
-# # imager
-# images_b = map(.x = files_benign, .f = load.image)
-# images_m = map(.x = files_malignant, .f = load.image)
-test = load.image(str_subset(string = files_benign, pattern = "0104"))
-test
-plot(test)
-```
-
-```{r}
+# Remove black borders
 rm_border = function(im, thresh_black, thresh_perc_x, thresh_perc_y){
   
   # Find out which pixels are black
@@ -67,68 +65,260 @@ rm_border = function(im, thresh_black, thresh_perc_x, thresh_perc_y){
   rm_pix_y = colMeans(bool_black) > thresh_perc_y
   return(crop.borders(im = im, nx = sum(rm_pix_x) / 2, ny = sum(rm_pix_y) / 2))
 }
-
-test2 = rm_border(im = test, thresh_black = 0.1, thresh_perc_x = 0.6, thresh_perc_y = 0.3) %>% plot()
 ```
 
-```{r}
-# Hair and ruler removal
-test3 = dilate_square(im = test2, size = 7) %>% plot()
-```
-
-```{r}
-# Bubble removal
-test4 = medianblur(im = test3, n = 30) %>% plot()
-test4
-```
-
-
-```{r}
-test5 = my_crop(im = test4, length = 600, width = 450)
-plot(test5)
-```
-
-```{r}
-# Size measurement / edge detection
-iiply(im = test5, axis = "c", fun = threshold, thr = 0.4) %>% plot()
-```
-
-
-```{r}
-# histogram equalization
-hist.eq = function(im){
-  as.cimg(obj = ecdf(x = im)(im), dim = dim(im))
+```{r, echo = FALSE}
+# Preprocessing
+for(i in 1:length(files_benign)){
+  load.image(file = files_benign[i]) %>%
+      rm_border(im = ., thresh_black = 0.1, thresh_perc_x = 0.2, thresh_perc_y = 0.5) %>%
+      my_crop(im = ., length = 300, width = 225) %>%
+      dilate_square(im = ., size = 3) %>%
+      medianblur(im = ., n = 5) %>%
+      save.image(im = ., file = paste0("D:/STAT542/my_benign/","benign", i, ".png"))
 }
-
-iiply(im = test2, axis = "c", fun = hist.eq) %>% plot()
-iiply(im = test2, axis = "c", fun = BalanceSimplest, sleft = 1, sright = 1, range = c(0,1)) %>% plot()
-iiply(im = test2, axis = "c", fun = EqualizePiecewise, N = 10, smax = 1, range = c(0,1)) %>% plot()
-iiply(im = test2, axis = "c", fun = SPE, lamda = 0.1, range = c(0,1)) %>% plot()
-iiply(im = test2, axis = "c", fun = EqualizeDP, t_down = 1, t_up = 1000, range = c(0,1)) %>% plot()
-iiply(im = test2, axis = "c", fun = EqualizeADP, range = c(0,1)) %>% plot()
 ```
 
-```{r}
+```{r, echo = FALSE, eval = FALSE}
+# Convert processed images to matrices
+files_benign2 = dir(path = "D:/STAT542/my_benign", full.names = TRUE)
+files_malignant2 = dir(path = "D:/STAT542/my_malignant", full.names = TRUE)
+
 # pix to matrix
 pix2vec = function(im){
   c(as.vector(R(im)), as.vector(G(im)), as.vector(B(im)))
 }
 
-test6 = pix2vec(im = test5)
+pic_all = lapply(X = c(files_benign2, files_malignant2), FUN = load.image) %>%
+  sapply(X = ., FUN = pix2vec) %>%
+  t() 
+
+saveRDS(object = pic_all, file = "processed.rds")
 ```
 
 ```{r}
-# Preprocessing
-for(i in 1:length(files_malignant)){
+pic_all = readRDS(file = "D:/STAT542/processed.rds")
+# pic_all = readRDS(file = "C:/Work/STAT542/processed.rds")
+colnames(pic_all) = str_c(rep("X", times = ncol(pic_all)), seq_len(length.out = ncol(pic_all)))
+y = rep(x = c("b","m"), each = 150)
+
+# train-test split
+set.seed(123)
+trn_idx = createDataPartition(y = y, p = 0.7, list = FALSE)
+trn_data = pic_all[trn_idx, ] %>% 
+  scale(x = ., center = TRUE, scale = TRUE)
+trn_y = y[trn_idx]
+
+tst_data = pic_all[-trn_idx, ] %>%
+  scale(x = ., center = TRUE, scale = TRUE)
+tst_y = y[-trn_idx]
+rm(pic_all)
+```
+
+```{r}
+# # LDA
+# set.seed(123)
+# mod_lda = train(x = trn_data, 
+#                 y = as.factor(trn_y),
+#                 method = "lda", 
+#                 trControl = trainControl(classProbs = TRUE, 
+#                                          summaryFunction = twoClassSummary))
+
+# RF
+# set.seed(123)
+# mod_rf = train(x = trn_data, 
+#                y = as.factor(trn_y),
+#                method = "rf", 
+#                preProcess = c("scale"), 
+#                metric = "Accuracy")
+
+# Adaboost
+set.seed(123)
+mod_ada = train(x = trn_data, 
+                y = as.factor(trn_y), 
+                method = "AdaBoost.M1", 
+                preProcess = "pca", 
+                metric = "ROC",
+                trControl = trainControl(method = "cv", classProbs = TRUE, summaryFunction = twoClassSummary))
+
+pred_ada = predict(object = mod_ada$finalModel, newdata = as.data.frame(tst_data$x))
+confusionMatrix(data = as.factor(pred_ada$class), reference = as.factor(tst_y), positive = "m")
+
+# SVM
+set.seed(123)
+mod_svm = train(x = trn_data, 
+                y = as.factor(trn_y),
+                method = "svmRadial", 
+                preProcess = NULL,
+                metric = "ROC", 
+                trControl = trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction = twoClassSummary))
+
+pred_svm = predict(object = mod_svm$finalModel, newdata = as.data.frame(tst_data$x))
+confusionMatrix(data = as.factor(pred_svm$class), reference = as.factor(tst_y), positive = "m")
+
+
+```
+
+```{r}
+test = load.image(file = str_subset(string = files_benign2, pattern = "108"))
+plot(test)
+```
+
+```{r}
+# Return a pixel set of region of interest (TRUE means background, FALSE means tumor)
+get_ROI = function(im, thr){
   
-  load.image(file = files_malignant[i]) %>%
-      rm_border(im = ., thresh_black = 0.1, thresh_perc_x = 0.2, thresh_perc_y = 0.5) %>%
-      my_crop(im = ., length = 300, width = 225) %>%
-      dilate_square(im = ., size = 3) %>%
-      medianblur(im = ., n = 5) %>%
-      save.image(im = ., file = paste0("D:/STAT542/my_malignant/","malignant", i, ".jpeg"))
+  a = im %>%
+    grayscale(.) %>%
+    threshold(im = ., thr = thr)
   
+  return(a)
+}
+
+calc_feature_shape = function(bool){
+  
+  # perimeter
+  p = boundary(bool) %>% sum()
+  
+  # Area
+  A = sum(!bool)
+  
+  # Irregularity index I = p^2/(4*pi*A)
+  irr = p ^ 2 / (4 * pi * A)
+  
+  # Compactness C = A_object / A_circle_w_same_perimeter
+  comp = A / (p ^ 2 / (4 * pi))
+  
+  return(c(perimeter = p, area = A, irregularity = irr, compactness = comp))
+}
+
+
+# Border detection
+show_border = function(im, bool){
+  
+  border = boundary(bool)
+  im[border] = 1
+  return(im)
+}
+
+# Extract ROI (color may change, not useful)
+crop_ROI = function(im, bool){
+  im[bool] = 1
+  return(im)
+}
+
+```
+
+```{r}
+ROI = get_ROI(im = load.image(file = files_malignant2[14]), thr = "auto")
+show_border(im = load.image(file = files_malignant2[14]), bool = ROI) %>% plot()
+crop_ROI(im = load.image(file = files_malignant2[14]), bool = ROI) %>% plot()
+```
+
+```{r}
+# color features: mean and standard devs of each color channel
+get_mean_sd = function(im, bool){
+  
+  # Split an image by color channels
+  a = imsplit(im = im, axis = "c")
+  
+  # Calculate means and sds of the ROI (Remember bool = FALSE when it's the tumor)
+  means = map_dbl(.x = a, .f = function(x){mean(x[!bool])})
+  sds = map_dbl(.x = a, .f = function(x){sd(x[!bool])})
+  
+  return(list(means = means, sds = sds))
+}
+
+calc_feature_color = function(im, bool){
+  
+  # RGB
+  RGB = unlist(get_mean_sd(im = im, bool = bool))
+  names(RGB) = str_c(rep(c("mean.", "sd."), each = 3), rep(c("R", "G", "B"), times = 2), sep = "")
+  
+  # HSV
+  HSV = unlist(get_mean_sd(im = RGBtoHSV(im = im), bool = bool))
+  names(HSV) = str_c(rep(c("mean.", "sd."), each = 3), rep(c("H", "S", "V"), times = 2), sep = "")
+  
+  # Lab
+  Lab = unlist(get_mean_sd(im = RGBtoLab(im = im), bool = bool))
+  names(Lab) = str_c(rep(c("mean.", "sd."), each = 3), rep(c("L", "a", "b"), times = 2), sep = "")
+  
+  return(c(RGB, HSV, Lab))
+}
+
+# Wrapper for shape and color features
+calc_feature_all = function(im, thr){
+  
+  ROI = get_ROI(im = im, thr = thr)
+  
+  shape = calc_feature_shape(bool = ROI)
+  color = calc_feature_color(im = im, bool = ROI)
+  
+  return(c(shape, color))
 }
 ```
 
+```{r}
+test2 = map(.x = files_benign2, .f = function(x){calc_feature_all(im = load.image(x), thr = "auto")}) %>%
+  rbind_list()
+test3 = map(.x = files_malignant2, .f = function(x){calc_feature_all(im = load.image(x), thr = "auto")}) %>%
+  rbind_list()
+data2 = rbind(test2, test3) %>%
+  cbind.data.frame(y, .)
+rm(test2, test3)
 
+trn_data2 = data2[trn_idx, ]
+tst_data2 = data2[-trn_idx, ]
+```
+
+```{r}
+# Random forest
+set.seed(123)
+mod_rf2 = train(form = y ~ ., 
+                data = trn_data2,
+                method = "rf", 
+                preProcess = NULL, 
+                metric = "ROC",
+                trControl = trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction = twoClassSummary), 
+                tuneGrid = expand.grid(mtry = c(2, round(sqrt(ncol(trn_data2))), 12, 22)))
+
+pred_rf = predict(object = mod_rf2, newdata = tst_data2)
+confusionMatrix(data = pred_rf, reference = as.factor(tst_y), positive = "m")
+
+plot(varImp(object = mod_rf2, scale = TRUE))
+```
+
+```{r}
+# Penalized logistic regression
+set.seed(123)
+mod_plr2 = train(form = y ~ ., 
+                 data = trn_data2,
+                  method = "plr", 
+                  preProcess = NULL, 
+                  metric = "ROC",
+                  trControl = trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction = twoClassSummary), 
+                 tuneGrid = expand.grid(lambda = c(1e-5, 1e-4, 1e-3), cp = c("aic", "bic")))
+
+pred_plr2 = predict(object = mod_plr2, newdata = tst_data2)
+confusionMatrix(data = pred_plr2, reference = as.factor(tst_y), positive = "m")
+
+summary(mod_plr2$finalModel)
+corrplot::corrplot(corr = cor(data2[,-1]))
+```
+
+```{r}
+############################ Unused code
+# histogram equalization
+hist.eq = function(im){
+  as.cimg(obj = ecdf(x = im)(im), dim = dim(im))
+}
+
+iiply(im = test, axis = "c", fun = hist.eq) %>% plot()
+iiply(im = test, axis = "c", fun = BalanceSimplest, sleft = 1, sright = 1, range = c(0,1)) %>% plot()
+iiply(im = test, axis = "c", fun = EqualizePiecewise, N = 10, smax = 1, range = c(0,1)) %>% plot()
+iiply(im = test, axis = "c", fun = SPE, lamda = 0.1, range = c(0,1)) %>% plot()
+iiply(im = test, axis = "c", fun = EqualizeDP, t_down = 1, t_up = 1000, range = c(0,1)) %>% plot()
+iiply(im = test, axis = "c", fun = EqualizeADP, range = c(0,1)) %>% plot()
+
+relief(formula = y ~ ., data = pic_all, neighbours.count = 5, sample.size = 10)
+```
