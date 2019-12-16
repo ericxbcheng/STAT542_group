@@ -283,7 +283,7 @@ The performance of this final forest is:
 And below is a summary of Question 1. 
 
 ```{r, eval = TRUE}
-Q1_table = tibble(Model = c("Logistic Regression with Lasso", "SVM with radial basis kernel", "Random Forest"), 
+Q1_table = tibble(Model = c("Logistic Regression with Lasso", "SVM with Radial Basis Kernel", "Random Forest"), 
                   Parameters = c(paste0("lambda = ", round(x = fit.glm$lambda.min, digits = 3)), 
                                  "sigma = 4.6e-06, C = 1", 
                                  c("max.tree.depth = 4, n.trees = 100, mtry = 202500")),
@@ -496,6 +496,18 @@ abline(v = log10(feature.fit.glm$lambda.min), lty = "dashed")
 plot(feature.perf, colorize=TRUE, main = "Fig.11 ROC curve of the logistic regression with LASSO model.")
 ```
 
+  Here is a summary table showing model performance for question 2.
+
+```{r, eval = TRUE}
+Q2_table = tibble(Model = c("Tree model", "Logistic Regression with LASSO"), 
+                  Parameters = c("Cp = 0.01", "lambda = 0.015"),
+                  Test_Accuracy = c(0.6, 0.7444),
+                  Sensitivity = c(0.6222, 0.7292),
+                  Specificity = c(0.5778, 0.7619))
+# Table 2
+kable_styling(kable_input = kable(x = Q2_table, format = "latex", caption = "Summary of models in question 2."), 
+              full_width = TRUE, latex_options = "hold_position")
+```
 
 
 # References
