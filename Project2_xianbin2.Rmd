@@ -1,6 +1,6 @@
 ---
 title: 'STAT 542 Group Project: Skin Cancer Classification'
-author: "Xianbin Cheng, Ziqin Xiong, Jingyu Li"
+author: "Team leader: Xianbin Cheng (xianbin2); Team members: Ziqin Xiong (zxiong8), Jingyu Li (jli173)"
 date: "December 16, 2019"
 output:
   pdf_document:
@@ -193,7 +193,7 @@ pred.roc = prediction(predict(fit.glm, tst_data, "lambda.min"), labels = tst_y)
 perf = performance(pred.roc,"tpr","fpr")
 ```
 
-  We used 10-fold cross validation with logistic regression and set “m” (Malignant) as the positive level. We let the function choose and tune the best tuning parameter, `lambda`. The `lambda.min` which achieves the minimum mean cross-validated error is `r fit.glm$lambda.min`, and we chose this lambda to validate the model (**Fig.4**). 
+  We used 10-fold cross validation with logistic regression and set “m” (Malignant) as the positive level. We let the function choose and tune the best tuning parameter, `lambda`. The `lambda.min` which achieves the minimum mean cross-validated error is `r fit.glm$lambda.min`, and we chose this lambda to validate the model (**Fig.4**). 
 
  Applying the model associated with the lambda we chose on the testing data, the accuracy of predicting the tumor to be benign and malignant achieved a moderately high accuracy,`r result_lasso$overall["Accuracy"]`, indicating that the logistic regression model was well-performed at identifying tumors. 
  Meanwhile, the sensitivity was `r result_lasso$byClass["Sensitivity"]`, which was still moderately high, and it indicated this model was moderately effective in identifying malignant tumors. The specificity, `r result_lasso$byClass["Specificity"]` was similar to the sensitivity, and indicated this model was also moderately effective in identifying benign tumors. The ROC plot also demonstrated the relationship between sensitivity and specificity. We could see from the plot that both of them could achieve a relative high level at the same time, when both were around 0.7 ~ 0.75 (**Fig.5**).
@@ -244,7 +244,7 @@ pred_svm = predict(object = mod_svm$finalModel, newdata = as.data.frame(tst_data
 result_svm = confusionMatrix(data = as.factor(pred_svm), reference = as.factor(tst_y), positive = "m")
 ```
 
-  A SVM model was trained with the radial basis function kernel. The parameter "cost" was tuned over 0.25, 0.5, 1 by 10-fold cross-validation and the model performance was evaluated by ROC. The tuning result suggested that the cost should be set at 1 as the cross-validation ROC was maximized at this point. 
+  A SVM model was trained with the radial basis function kernel. The parameter "cost" was tuned over 0.25, 0.5, 1 by 10-fold cross-validation and the model performance was evaluated by ROC. The tuning result suggested that the cost should be set at 1 as the cross-validation ROC was maximized at this point (**Fig.6**). 
   
   The final SVM model with cost = 1 could achieve a relatively high test accuracy of `r result_svm$overall["Accuracy"]`. Specifically, this model had a sensitivity of `r result_svm$byClass["Sensitivity"]` and a specificity of `r result_svm$byClass["Specificity"]`, which indicates that the model would perform better at predicting a malignant melanoma than predicting a benign melanoma. On one hand, this model would be useful in malignant cancer screening as it has a lower false negative rate. On the other hand, its high false positive rate could impose a noticeable financial burden on patients who may have to go through unnecessary sequential testing.
 
@@ -481,7 +481,7 @@ df_coef = coef(feature.fit.glm, s = 'lambda.min')[as.numeric(which(coef(feature.
  We again used 10-fold cross validation with logistic regression and set “m” (Malignant) as the positive level. We again let the function choose and tune the best tuning parameter, lambda. The lambda.min which achieves the minimum cross-validated error is `r fit.glm$lambda.min`, and we chose this lambda to validate the model (**Fig.10**). 
 
  The accuracy of predicting the tumor for the testing data was `r result_lasso_feature$overall["Accuracy"]`, a little higher than that in Question 1. Both sensitivity and specificity increased compared to those in Question 1. The ROC plot also showed a more desired curve indicating the sensitivity and specificity. By looking at these statistics, we assumed that the feature engineering process successfully helped increase the accuracy of identifying tumors (**Fig.11**). 
- Lasso helped us to do variable selection. Under the lambda we chose, only 9 out of the 22 features had nonzero coefficients and thus contributed to the final identification. They are "perimeter”, ”area”, “compactness”, “mean.B”, “sd.B”, ”mean.H”, "sd.H”, “sd.S” and “sd.V”. Then we took a deeper look at their individual coefficients. We surprisedly found that the coefficients of mean.B (mean value of blue channel) and sd.S (standard deviation of saturation) had much more lower coefficients than any one else, and both coefficients were negative. This meant, when the mean value of the blue channel  or the standard deviation of the saturation value of a mole was high, then the mole was much more likely to be a benign one. The third feature with relatively significant coefficient was compactness (ratio between the area of the mole and the area of the circle with the same parimeter), with coefficient about -3, which indicated that higher compactness of the mole contributed to a higher probability of being benign.
+ Lasso helped us to do variable selection. Under the lambda we chose, only 9 out of the 22 features had nonzero coefficients and thus contributed to the final identification. They are "perimeter”, ”area”, “compactness”, “mean.B”, “sd.B”, ”mean.H”, "sd.H”, “sd.S” and “sd.V”. Then we took a deeper look at their individual coefficients (**Table 3**). We surprisedly found that the coefficients of mean.B (mean value of blue channel) and sd.S (standard deviation of saturation) had much more lower coefficients than any one else, and both coefficients were negative. This meant, when the mean value of the blue channel  or the standard deviation of the saturation value of a mole was high, then the mole was much more likely to be a benign one. The third feature with relatively significant coefficient was compactness (ratio between the area of the mole and the area of the circle with the same parimeter), with coefficient about -3, which indicated that higher compactness of the mole contributed to a higher probability of being benign.
 
 ```{r, eval = TRUE, fig.keep = "hold", fig.height= 5,fig.width= 10, out.width = "80%"}
 # Nonzero
