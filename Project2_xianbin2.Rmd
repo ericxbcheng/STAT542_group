@@ -257,13 +257,13 @@ plot(mod_svm, main = "Fig.6 Parameter tuning for SVM model")
 We also fitted random forest models. Here we used Python to fit the model in consideration of efficiency. Since the input here has extremely large dimension (p = 202500), the key parameters to tune are mtry (max parameter to consider we split each tree) and max depth of each tree (max node = $2^{\text{max depth}}$). We first tune the max depths when fixing mtry to be 1, i.e., we choose all features and no bootstrap is performed. We can see below that when max tree depth is 4 (max node size 16), the accuracy reach maximum of 0.7. (when training a random forests of 100 trees)
 
 \begin{center}
-\includegraphics[width=0.8\textwidth,height=\textheight]{depth_vs_accu2.jpg}
+\includegraphics[width=0.7\textwidth,height=\textheight]{depth_vs_accu2.jpg}
 \end{center}
 
 We then tune the mtry parameter: fixing tree depth to be 4 and train model with 20%, 40%, 60%, 80%, 100% features to consider when split the tree. We can see below that when we consider all features, the accuracy is highest. But the difference is small, considering that the randomness is still very high when we have 202500 dimensions and fit only 100 trees.
 
 \begin{center}
-\includegraphics[width=0.8\textwidth,height=\textheight]{mtry_vs_accu.jpg}
+\includegraphics[width=0.7\textwidth,height=\textheight]{mtry_vs_accu.jpg}
 \end{center}
 
 The performance of this final forest is:
@@ -276,7 +276,7 @@ The performance of this final forest is:
 \hline
 \textbf{F1 Score}                     & \textbf{Accuracy} & \textbf{Sensitivity} & \textbf{Precision} & \textbf{F1 Score} \\ \hline
 \hline
-\textbf{Final Random Forest Model} & 0.7               & 0.7                  & 0.7                & 0.7               \\ \hline
+\textbf{Final Random Forest Model} & 0.700           & 0.702                  & 0.717                & 0.710               \\ \hline
 \end{tabular}
 \end{table}
 
@@ -288,8 +288,8 @@ Q1_table = tibble(Model = c("Logistic Regression with Lasso", "SVM with radial b
                                  "sigma = 4.6e-06, C = 1", 
                                  c("max.tree.depth = 4, n.trees = 100, mtry = 202500")),
                   Test_Accuracy = c(result_lasso$overall["Accuracy"], result_svm$overall["Accuracy"], 0.7),
-                  Sensitivity = c(result_lasso$byClass["Sensitivity"], result_svm$byClass["Sensitivity"], 0.7),
-                  Specificity = c(result_lasso$byClass["Specificity"], result_svm$byClass["Specificity"], 0.698))
+                  Sensitivity = c(result_lasso$byClass["Sensitivity"], result_svm$byClass["Sensitivity"], 33/47),
+                  Specificity = c(result_lasso$byClass["Specificity"], result_svm$byClass["Specificity"], 30/43))
 # Table 2
 kable_styling(kable_input = kable(x = Q1_table, format = "latex", caption = "Summary of models in question 1."), 
               full_width = TRUE, latex_options = "hold_position")
@@ -488,7 +488,7 @@ df_coef = coef(feature.fit.glm, s = 'lambda.min')[as.numeric(which(coef(feature.
 kable_styling(kable(df_coef, col.names = "Coefficient", format = "latex", caption = "Nonzero coefficients of the logistic regression with LASSO model.",booktabs = T), position = "center", latex_options = "hold_position")
 
 # log lambda vs. coefficients
-par(mfrow = c(1,2),mar = c(5,4,6,2))
+par(mfrow = c(1,2),mar = c(5,7,7,2))
 plot(feature.fit.glm$glmnet.fit, "lambda", main = "Fig.10 Coefficients VS lambda.")
 abline(v = log10(feature.fit.glm$lambda.min), lty = "dashed")
 
