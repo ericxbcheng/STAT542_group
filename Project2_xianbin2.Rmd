@@ -1,8 +1,12 @@
 ---
 title: 'STAT 542 Group Project: Skin Cancer Classification'
-author: "Xianbin Cheng"
-date: "December 1, 2019"
-output: pdf_document
+author: "Xianbin Cheng, Ziqin Xiong, Jingyu Li"
+date: "December 16, 2019"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: 2
+    keep_tex: true
 ---
 
 ```{r setup, include=FALSE}
@@ -10,15 +14,17 @@ knitr::opts_chunk$set(echo = FALSE)
 knitr::opts_chunk$set(eval = FALSE)
 knitr::opts_chunk$set(message = FALSE)
 knitr::opts_chunk$set(warning = FALSE)
-knitr::opts_chunk$set(fig.height = 6, fig.width = 8, out.width = '50%',fig.show = "hold", fig.align = "center")
+knitr::opts_chunk$set(fig.height = 6, fig.width = 8, out.width = '80%',fig.show = "hold", fig.align = "center")
 options(width = 90)
 ```
 
 # Project Description and Summary
 
-  Skin cancer, including melanoma and nonmelanoma skin cancer, is one of the most prevalent carcinomas worldwide. Clinal confirmatory test of skin cancer often requires procedure such as a biopsy, which is invasive and time-consuming. Building reliable models that can classify skin cancer based on dermoscopic images may extensively accelerate the diagnosis process and prevent the suffering of a biopsy. Before training models, images were preprocessed with cropping, resizing, blurring, and dilation to eliminate irrelevant objects such as black frames, hair, bubble, and ruler on the lens. [Model training part] 
+  Skin cancer, including melanoma and nonmelanoma skin cancer, is one of the most prevalent carcinomas worldwide. Clinal confirmatory test of skin cancer often requires procedure such as a biopsy, which is invasive and time-consuming. Building reliable models that can classify skin cancer based on dermoscopic images may extensively accelerate the diagnosis process and prevent the suffering of a biopsy. This dataset contains 300 images taken with different equipment with different magnification. They have different resolution; some appears to be redder and others look bluer; some have black frames and ruler on it and others don't, etc. Hence before training models, images were preprocessed with cropping, resizing, blurring, and dilation to eliminate irrelevant objects such as black frames, hair, bubble, and ruler on the lens. [Model training part]
   
-  With the goal of enhancing interpretability of the models, skin lesion was automatically identified by border detection and 22 features were engineered to reflect skin lesion’s shape characteristics (perimeter, area, border irregularity, shape compactness) and color characteristics (pixel mean and standard deviation of normalized RGB, HSV, CIE L*a*b color channels). [Model training part]
+  For classification model, logistic regression with LASSO, support vector machine and random forest were used. Input of each image is the concatenation of RGB chanel of processed 300*225 image, so the total dimension is 202500. Each model were tuned for best performance. And the accuracies are around 70%. 
+  
+  With the goal of enhancing interpretability of the models, skin lesion was automatically identified by border detection and 22 features were engineered to reflect skin lesion’s shape characteristics (perimeter, area, border irregularity, shape compactness) and color characteristics (pixel mean and standard deviation of normalized RGB, HSV, CIE L*a*b color channels). Decision tree and logistic regression with LASSO model were then applied on these new features, which yield a higher classification rate than in question 1. [Model training part] 
 
 # Question 1
 
@@ -37,9 +43,14 @@ library(ROCR)
 library(kableExtra)
 ```
 
+
+
 ```{r, eval = TRUE}
-files_benign = dir(path = "D:/STAT542/benign", full.names = TRUE)
-files_malignant = dir(path = "D:/STAT542/malignant", full.names = TRUE)
+#path for unprocessed images
+#files_benign = dir(path = "D:/STAT542/benign", full.names = TRUE)
+#files_malignant = dir(path = "D:/STAT542/malignant", full.names = TRUE)
+files_benign = dir(path = "benign", full.names = TRUE)
+files_malignant = dir(path = "malignant", full.names = TRUE)
 ```
 
 ## Data Processing
@@ -103,8 +114,11 @@ for(i in 1:length(files_malignant)){
 ```
 
 ```{r, eval = TRUE}
-files_benign2 = dir(path = "D:/STAT542/my_benign", full.names = TRUE)
-files_malignant2 = dir(path = "D:/STAT542/my_malignant", full.names = TRUE)
+#path for processed images
+#files_benign2 = dir(path = "D:/STAT542/my_benign", full.names = TRUE)
+#files_malignant2 = dir(path = "D:/STAT542/my_malignant", full.names = TRUE)
+files_benign2 = dir(path = "my_benign", full.names = TRUE)
+files_malignant2 = dir(path = "my_malignant", full.names = TRUE)
 ```
 
 ```{r, echo = FALSE, eval = FALSE}
@@ -123,16 +137,19 @@ saveRDS(object = pic_all, file = "processed.rds")
 
   The raw data are consisted of 300 color photos of different sizes. As the photos were taken with a dermoscope on skin with a variety of conditions, the goal of photo preprocessing is to eliminate irrelevant objects in the view, such as the black frame, the dark area beyond the ocular lens, the hair, the bubbles, and the ruler on the object lens. To start with, black frames and dark areas were identified by converting photos to grayscale and checking the pixels in each row/column. A row was considered a black frame when over 50% of the pixels were black (normalized pixel value < 0.1) while a column was considered intersecting a dark area when over 20% of the pixels were black (Celebi *et al.*, 2008). These rows and columns were cropped from the original photo. Next, all the photos were further cropped and resized to 300 x 225 pixels with linear interpolation to reduce computation time. To remove hair and the ruler, image dilation was conducted with a size-3 square structuring element (Do Hyun Chung & Sapiro, 2000). Furthermore, bubbles were blurred by applying a 5 x 5 median filter (Masood & Al-Jumaily, 2013). Eventually, each photo was converted into a vector of 202,500 pixels, with pixels in R, G, B channels concatenating one another sequentially. An example is provided here to demonstrate the preprocessing effect (**Fig.1**, **Fig.2**).
   
-```{r, echo = FALSE, eval = TRUE, fig.keep = "hold", out.width = "50%"}
+```{r, echo = FALSE, eval = TRUE, fig.keep = "hold", fig.height= 5,fig.width= 10, out.width = "80%"}
 # Demo for image prepocessing
+par(mfrow = c(1,2),mar = c(5,4,6,2))
 load.image(file = str_subset(string = files_benign, pattern = "0210")) %>% plot(main = "Fig.1 An example image before preprocessing.")
 load.image(file = str_subset(string = files_benign2, pattern = "benign24")) %>% plot(main = "Fig.2 An example image after preprocessing.")
+
 ```
 
 ## Classification Models Based On Pixels
 
 ```{r, eval = TRUE}
-pic_all = readRDS(file = "D:/STAT542/processed.rds")
+#pic_all = readRDS(file = "D:/STAT542/processed.rds")
+pic_all = readRDS(file = "processed.rds")
 colnames(pic_all) = str_c(rep("X", times = ncol(pic_all)), seq_len(length.out = ncol(pic_all)))
 y = rep(x = c("b","m"), each = 150)
 
@@ -157,19 +174,26 @@ fit.glm = cv.glmnet(trn_data, trn_y, family = "binomial", alpha = 1)
 # SVM
 set.seed(123)
 mod_svm = train(x = trn_data, 
-                y = as.factor(trn_y),
-                method = "svmRadial", 
-                preProcess = NULL,
-                metric = "ROC", 
-                trControl = trainControl(method = "cv", number = 10, classProbs = TRUE, summaryFunction = twoClassSummary))
+                y = as.factor(trn_y), method = "svmRadial", preProcess = NULL,
+                metric = "ROC", trControl = trainControl(
+                  method = "cv", number = 10, classProbs = TRUE, 
+                  summaryFunction = twoClassSummary))
 ```
+
+```{r}
+saveRDS(fit.glm,file = "Q1_glm.rds")
+saveRDS(mod_svm,file = "mod_svmRadial_roc_cv_10.rds")
+```
+
 
 ```{r, echo = FALSE, eval = TRUE}
-mod_svm = readRDS(file = "D:/STAT542/mod_svmRadial_roc_cv_10.rds")
-fit.glm = readRDS(file = "D:/STAT542/Q1_glm.rds")
+#mod_svm = readRDS(file = "D:/STAT542/mod_svmRadial_roc_cv_10.rds")
+#fit.glm = readRDS(file = "D:/STAT542/Q1_glm.rds")
+mod_svm = readRDS(file = "mod_svmRadial_roc_cv_10.rds")
+fit.glm = readRDS(file = "Q1_glm.rds")
 ```
 
-  To train the models, 70% of the data were treated as the training set and 30% of the data were treated as the testing set. As a preprocessing step, the data were scaled by centering and scaling. The seed was set at 123 to ensure reproducibility. 
+To train the models, 70% of the data were treated as the training set and 30% of the data were treated as the testing set. As a preprocessing step, the data were scaled by centering and scaling. The seed was set at 123 to ensure reproducibility. 
 
 ### Logisitic Regression with LASSO
 
@@ -198,13 +222,30 @@ perf = performance(pred.roc,"tpr","fpr")
 
  Moving deeper, we found with lasso penalty, there were in total 33 pixels that had non-zero coefficients, indicating they were contributing to the final classification. 3 of them were from Red in RGB channels, 7 of them were from Green, and 23 of them were from Blue (**Table 1**). Just from the number of non-zero coefficients in the model, we assumed the color blue in each pixel would be more significant than others when identifying tumors. However, the number of color channel with nonzero coefficients couldn’t tell much information about the relationship between pixel RGB and the tumor, so we need more intuitive features to identify them.
  
-```{r, eval = TRUE}
+\begin{table}[ht]
+\centering
+\begin{tabular}{llll}
+\hline
+\textbf{}                          & \textbf{Red} & \textbf{Green} & \textbf{Blue} \\
+\hline
+\textbf{\# of contributing pixels} & 7            & 5              & 30        \\   
+\hline
+\end{tabular}
+\caption{number of contributing pixels in different channels}
+\end{table}
+ 
+ 
+```{r, eval = TRUE,out.width="70%",fig.height=5.5}
+#par(mfcol=c(2,1))
 # log lambda vs. coefficients
-plot(fit.glm$glmnet.fit, "lambda", main = "Fig.4 Plot of lambda versus coefficients.")
+par(mar = c(5,4,4,4))
+plot(fit.glm$glmnet.fit, "lambda")
+title("Fig.4 Plot of lambda versus coefficients.", line = 3)
 abline(v = log10(fit.glm$lambda.min), col = "red")
 
 # Table 1
-kable_styling(kable_input = kable(num_df, format = "latex", caption = ""), full_width = TRUE, latex_options = "hold_position")
+#kable_styling(kable_input = kable(num_df, format = "latex", caption = ""), latex_options = "hold_position")
+#kable(num_df, format = "latex", caption = "")
 
 # ROC plot
 plot(perf, colorize=TRUE, main = "Fig.5 ROC plot of the LASSO GLM model.")
@@ -222,7 +263,7 @@ result_svm = confusionMatrix(data = as.factor(pred_svm), reference = as.factor(t
   
   The final SVM model with cost = 1 could achieve a relatively high test accuracy of `r result_svm$overall["Accuracy"]`. Specifically, this model had a sensitivity of `r result_svm$byClass["Sensitivity"]` and a specificity of `r result_svm$byClass["Specificity"]`, which indicates that the model would perform better at predicting a malignant melanoma than predicting a benign melanoma. On one hand, this model would be useful in malignant cancer screening as it has a lower false negative rate. On the other hand, its high false positive rate could impose a noticeable financial burden on patients who may have to go through unnecessary sequential testing.
 
-```{r, eval = TRUE}
+```{r, eval = TRUE, fig.height=5}
 plot(mod_svm, main = "Fig.6 Parameter tuning for SVM model")
 ```
 
@@ -230,25 +271,31 @@ plot(mod_svm, main = "Fig.6 Parameter tuning for SVM model")
 
 We also fitted random forest models. Here we used Python to fit the model in consideration of efficiency. Since the input here has extremely large dimension (p = 202500), the key parameters to tune are mtry (max parameter to consider we split each tree) and max depth of each tree (max node = $2^{\text{max depth}}$). We first tune the max depths when fixing mtry to be 1, i.e., we choose all features and no bootstrap is performed. We can see below that when max tree depth is 4 (max node size 16), the accuracy reach maximum of 0.7. (when training a random forests of 100 trees)
 
-![](depth_vs_accu2.jpg)
+\begin{center}
+\includegraphics[width=0.8\textwidth,height=\textheight]{depth_vs_accu2.jpg}
+\end{center}
 
 We then tune the mtry parameter: fixing tree depth to be 4 and train model with 20%, 40%, 60%, 80%, 100% features to consider when split the tree. We can see below that when we consider all features, the accuracy is highest. But the difference is small, considering that the randomness is still very high when we have 202500 dimensions and fit only 100 trees.
 
-![](mtry_vs_accu.jpg)
+\begin{center}
+\includegraphics[width=0.8\textwidth,height=\textheight]{mtry_vs_accu.jpg}
+\end{center}
 
 The performance of this final forest is:
 
 
 
 \begin{table}[ht]
+\centering
 \begin{tabular}{lllll}
 \hline
 \textbf{F1 Score}                     & \textbf{Accuracy} & \textbf{Sensetivity} & \textbf{Precision} & \textbf{F1 Score} \\ \hline
 \hline
-\textbf{32 Dimension Dense Embedding} & 0.7               & 0.7                  & 0.7                & 0.7               \\ \hline
+\textbf{Final Random Forest Model} & 0.7               & 0.7                  & 0.7                & 0.7               \\ \hline
 \end{tabular}
 \end{table}
 
+And below is a summary of Question 1. 
 
 ```{r, eval = TRUE}
 f_param = function(mod){
@@ -261,7 +308,7 @@ Q1_table = tibble(Model = c("Logistic Regression with Lasso", "SVM with radial b
                   Sensitivity = c(result_lasso$byClass["Sensitivity"], result_svm$byClass["Sensitivity"]),
                   Specificity = c(result_lasso$byClass["Specificity"], result_svm$byClass["Specificity"]))
 # Table 2
-kable_styling(kable_input = kable(x = Q1_table, format = "latex", caption = "Summary of models"), full_width = TRUE)
+kable_styling(kable_input = kable(x = Q1_table, format = "latex", caption = "Summary of models"), full_width = TRUE, latex_options = "hold_position")
 ```
 
 # Question 2
@@ -400,7 +447,9 @@ mod_cart = train(form = as.factor(y) ~ .,
                   method = "rpart", 
                   preProcess = NULL, 
                   metric = "ROC",
-                  trControl = trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction = twoClassSummary), 
+                  trControl = trainControl(
+                    method = "cv", number = 5, classProbs = TRUE, 
+                    summaryFunction = twoClassSummary), 
                  tuneGrid = expand.grid(cp = c(0, 0.001, 0.005, 0.01, 0.05)))
 ```
 
@@ -511,7 +560,7 @@ summary(mod_plr2$finalModel)
 corrplot::corrplot(corr = cor(data2[,-1]))
 ```
 
-```{r, echo = TRUE, eval = FALSE}
+```{r, eval = FALSE}
 # Random forest
 set.seed(123)
 mod_rf2 = train(form = y ~ ., 
