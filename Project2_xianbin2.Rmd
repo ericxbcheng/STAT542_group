@@ -20,11 +20,11 @@ options(width = 90)
 
 # Project Description and Summary
 
-  Skin cancer, including melanoma and nonmelanoma skin cancer, is one of the most prevalent carcinomas worldwide. Clinal confirmatory test of skin cancer often requires procedure such as a biopsy, which is invasive and time-consuming. Building reliable models that can classify skin cancer based on dermoscopic images may extensively accelerate the diagnosis process and prevent the suffering of a biopsy. This dataset contains 300 images taken with different equipment with different magnification. They have different resolution; some appears to be redder and others look bluer; some have black frames and ruler on it and others don't, etc. Hence before training models, images were preprocessed with cropping, resizing, blurring, and dilation to eliminate irrelevant objects such as black frames, hair, bubble, and ruler on the lens. [Model training part]
+  Skin cancer, including melanoma and nonmelanoma skin cancer, is one of the most prevalent carcinomas worldwide. Clinal confirmatory test of skin cancer often requires procedure such as a biopsy, which is invasive and time-consuming. Building reliable models that can classify skin cancer based on dermoscopic images may extensively accelerate the diagnosis process and prevent the suffering of a biopsy. This dataset contains 300 images taken with different equipment with different magnification. They have different resolution; some appears to be redder and others look bluer; some have black frames and ruler on it and others don't, etc. Hence before training models, images were preprocessed with cropping, resizing, blurring, and dilation to eliminate irrelevant objects such as black frames, hair, bubble, and ruler on the lens. 
   
   For classification model, logistic regression with LASSO, support vector machine and random forest were used. Input of each image is the concatenation of RGB chanel of processed 300*225 image, so the total dimension is 202500. Each model were tuned for best performance. And the accuracies are around 70%. 
   
-  With the goal of enhancing interpretability of the models, skin lesion was automatically identified by border detection and 22 features were engineered to reflect skin lesion’s shape characteristics (perimeter, area, border irregularity, shape compactness) and color characteristics (pixel mean and standard deviation of normalized RGB, HSV, CIE L*a*b color channels). Decision tree and logistic regression with LASSO model were then applied on these new features, which yield a higher classification rate than in question 1. [Model training part] 
+  With the goal of enhancing interpretability of the models, skin lesion was automatically identified by border detection and 22 features were engineered to reflect skin lesion’s shape characteristics (perimeter, area, border irregularity, shape compactness) and color characteristics (pixel mean and standard deviation of normalized RGB, HSV, CIE L*a*b color channels). Decision tree and logistic regression with LASSO model were then applied on these new features, which yield an overall accuracy of 60% and 74% respectively. These models have better interpretability and may facilitate rapid screening of skin cancer.
 
 # Question 1
 
@@ -47,8 +47,6 @@ library(kableExtra)
 
 ```{r, eval = TRUE}
 #path for unprocessed images
-#files_benign = dir(path = "D:/STAT542/benign", full.names = TRUE)
-#files_malignant = dir(path = "D:/STAT542/malignant", full.names = TRUE)
 files_benign = dir(path = "benign", full.names = TRUE)
 files_malignant = dir(path = "malignant", full.names = TRUE)
 ```
@@ -100,7 +98,7 @@ for(i in 1:length(files_benign)){
       my_crop(im = ., length = 300, width = 225) %>%
       dilate_square(im = ., size = 3) %>%
       medianblur(im = ., n = 5) %>%
-      save.image(im = ., file = paste0("D:/STAT542/my_benign/","benign", i, ".png"))
+      save.image(im = ., file = paste0("my_benign/","benign", i, ".png"))
 }
 
 for(i in 1:length(files_malignant)){
@@ -109,14 +107,12 @@ for(i in 1:length(files_malignant)){
       my_crop(im = ., length = 300, width = 225) %>%
       dilate_square(im = ., size = 3) %>%
       medianblur(im = ., n = 5) %>%
-      save.image(im = ., file = paste0("D:/STAT542/my_malignant/","malignant", i, ".png"))
+      save.image(im = ., file = paste0("my_malignant/","malignant", i, ".png"))
 }
 ```
 
 ```{r, eval = TRUE}
 #path for processed images
-#files_benign2 = dir(path = "D:/STAT542/my_benign", full.names = TRUE)
-#files_malignant2 = dir(path = "D:/STAT542/my_malignant", full.names = TRUE)
 files_benign2 = dir(path = "my_benign", full.names = TRUE)
 files_malignant2 = dir(path = "my_malignant", full.names = TRUE)
 ```
@@ -148,7 +144,6 @@ load.image(file = str_subset(string = files_benign2, pattern = "benign24")) %>% 
 ## Classification Models Based On Pixels
 
 ```{r, eval = TRUE}
-#pic_all = readRDS(file = "D:/STAT542/processed.rds")
 pic_all = readRDS(file = "processed.rds")
 colnames(pic_all) = str_c(rep("X", times = ncol(pic_all)), seq_len(length.out = ncol(pic_all)))
 y = rep(x = c("b","m"), each = 150)
@@ -166,39 +161,22 @@ tst_y = y[-trn_idx]
 rm(pic_all)
 ```
 
-```{r, eval = FALSE, echo = TRUE}
-# Lasso GLM
-set.seed(123)
-fit.glm = cv.glmnet(trn_data, trn_y, family = "binomial", alpha = 1)
 
-# SVM
-set.seed(123)
-mod_svm = train(x = trn_data, 
-                y = as.factor(trn_y), method = "svmRadial", preProcess = NULL,
-                metric = "ROC", trControl = trainControl(
-                  method = "cv", number = 10, classProbs = TRUE, 
-                  summaryFunction = twoClassSummary))
-```
-
-```{r}
-saveRDS(fit.glm,file = "Q1_glm.rds")
-saveRDS(mod_svm,file = "mod_svmRadial_roc_cv_10.rds")
-```
-
-
-```{r, echo = FALSE, eval = TRUE}
-#mod_svm = readRDS(file = "D:/STAT542/mod_svmRadial_roc_cv_10.rds")
-#fit.glm = readRDS(file = "D:/STAT542/Q1_glm.rds")
-mod_svm = readRDS(file = "mod_svmRadial_roc_cv_10.rds")
-fit.glm = readRDS(file = "Q1_glm.rds")
-```
 
 To train the models, 70% of the data were treated as the training set and 30% of the data were treated as the testing set. As a preprocessing step, the data were scaled by centering and scaling. The seed was set at 123 to ensure reproducibility. 
 
 ### Logisitic Regression with LASSO
 
+```{r}
+# Lasso GLM
+set.seed(123)
+fit.glm = cv.glmnet(trn_data, trn_y, family = "binomial", alpha = 1)
+saveRDS(fit.glm,file = "Q1_glm.rds")
+```
+
 ```{r, eval = TRUE}
 # Lasso GLM
+fit.glm = readRDS(file = "Q1_glm.rds")
 pred.glm = factor(predict(fit.glm, tst_data, "lambda.min", type = "class"))
 result_lasso = confusionMatrix(as.factor(tst_y), pred.glm, positive = 'm')
 
@@ -235,17 +213,12 @@ perf = performance(pred.roc,"tpr","fpr")
 \end{table}
  
  
-```{r, eval = TRUE,out.width="70%",fig.height=5.5}
-#par(mfcol=c(2,1))
+```{r, eval = TRUE,fig.keep = "hold", fig.height= 5,fig.width= 10, out.width = "80%"}
 # log lambda vs. coefficients
-par(mar = c(5,4,4,4))
+par(mfrow = c(1,2),mar = c(5,4,6,2))
 plot(fit.glm$glmnet.fit, "lambda")
 title("Fig.4 Plot of lambda versus coefficients.", line = 3)
 abline(v = log10(fit.glm$lambda.min), col = "red")
-
-# Table 1
-#kable_styling(kable_input = kable(num_df, format = "latex", caption = ""), latex_options = "hold_position")
-#kable(num_df, format = "latex", caption = "")
 
 # ROC plot
 plot(perf, colorize=TRUE, main = "Fig.5 ROC plot of the LASSO GLM model.")
@@ -253,8 +226,20 @@ plot(perf, colorize=TRUE, main = "Fig.5 ROC plot of the LASSO GLM model.")
 
 ### SVM with Radial Basis Function
 
-```{r, eval = TRUE}
+```{r, eval = FALSE, echo = FALSE}
+# SVM
+set.seed(123)
+mod_svm = train(x = trn_data, 
+                y = as.factor(trn_y), method = "svmRadial", preProcess = NULL,
+                metric = "ROC", trControl = trainControl(
+                  method = "cv", number = 10, classProbs = TRUE, 
+                  summaryFunction = twoClassSummary))
+saveRDS(mod_svm,file = "mod_svmRadial_roc_cv_10.rds")
+```
+
+```{r, echo = FALSE, eval = TRUE}
 # SVM with radial basis kernel
+mod_svm = readRDS(file = "mod_svmRadial_roc_cv_10.rds")
 pred_svm = predict(object = mod_svm$finalModel, newdata = as.data.frame(tst_data))
 result_svm = confusionMatrix(data = as.factor(pred_svm), reference = as.factor(tst_y), positive = "m")
 ```
@@ -263,11 +248,11 @@ result_svm = confusionMatrix(data = as.factor(pred_svm), reference = as.factor(t
   
   The final SVM model with cost = 1 could achieve a relatively high test accuracy of `r result_svm$overall["Accuracy"]`. Specifically, this model had a sensitivity of `r result_svm$byClass["Sensitivity"]` and a specificity of `r result_svm$byClass["Specificity"]`, which indicates that the model would perform better at predicting a malignant melanoma than predicting a benign melanoma. On one hand, this model would be useful in malignant cancer screening as it has a lower false negative rate. On the other hand, its high false positive rate could impose a noticeable financial burden on patients who may have to go through unnecessary sequential testing.
 
-```{r, eval = TRUE, fig.height=5}
+```{r, eval = TRUE, out.width = "50%"}
 plot(mod_svm, main = "Fig.6 Parameter tuning for SVM model")
 ```
 
-## Random Forestss
+### Random Forest
 
 We also fitted random forest models. Here we used Python to fit the model in consideration of efficiency. Since the input here has extremely large dimension (p = 202500), the key parameters to tune are mtry (max parameter to consider we split each tree) and max depth of each tree (max node = $2^{\text{max depth}}$). We first tune the max depths when fixing mtry to be 1, i.e., we choose all features and no bootstrap is performed. We can see below that when max tree depth is 4 (max node size 16), the accuracy reach maximum of 0.7. (when training a random forests of 100 trees)
 
@@ -289,7 +274,7 @@ The performance of this final forest is:
 \centering
 \begin{tabular}{lllll}
 \hline
-\textbf{F1 Score}                     & \textbf{Accuracy} & \textbf{Sensetivity} & \textbf{Precision} & \textbf{F1 Score} \\ \hline
+\textbf{F1 Score}                     & \textbf{Accuracy} & \textbf{Sensitivity} & \textbf{Precision} & \textbf{F1 Score} \\ \hline
 \hline
 \textbf{Final Random Forest Model} & 0.7               & 0.7                  & 0.7                & 0.7               \\ \hline
 \end{tabular}
@@ -298,17 +283,16 @@ The performance of this final forest is:
 And below is a summary of Question 1. 
 
 ```{r, eval = TRUE}
-f_param = function(mod){
-  return(str_c(names(mod$bestTune), mod$bestTune, sep = " = ", collapse = ", "))
-}
-
-Q1_table = tibble(Model = c("Logistic Regression with Lasso", "SVM with radial basis kernel"), 
-                  Parameters = c(paste0("lambda = ", fit.glm$lambda.min), f_param(mod_svm)),
-                  Test_Accuracy = c(result_lasso$overall["Accuracy"], result_svm$overall["Accuracy"]),
-                  Sensitivity = c(result_lasso$byClass["Sensitivity"], result_svm$byClass["Sensitivity"]),
-                  Specificity = c(result_lasso$byClass["Specificity"], result_svm$byClass["Specificity"]))
+Q1_table = tibble(Model = c("Logistic Regression with Lasso", "SVM with radial basis kernel", "Random Forest"), 
+                  Parameters = c(paste0("lambda = ", round(x = fit.glm$lambda.min, digits = 3)), 
+                                 "sigma = 4.6e-06, C = 1", 
+                                 c("max.tree.depth = 4, n.trees = 100, mtry = 202500")),
+                  Test_Accuracy = c(result_lasso$overall["Accuracy"], result_svm$overall["Accuracy"], 0.7),
+                  Sensitivity = c(result_lasso$byClass["Sensitivity"], result_svm$byClass["Sensitivity"], 0.7),
+                  Specificity = c(result_lasso$byClass["Specificity"], result_svm$byClass["Specificity"], 0.698))
 # Table 2
-kable_styling(kable_input = kable(x = Q1_table, format = "latex", caption = "Summary of models"), full_width = TRUE, latex_options = "hold_position")
+kable_styling(kable_input = kable(x = Q1_table, format = "latex", caption = "Summary of models in question 1."), 
+              full_width = TRUE, latex_options = "hold_position")
 ```
 
 # Question 2
@@ -406,7 +390,7 @@ calc_feature_all = function(im, thr){
 }
 ```
 
-```{r, echo = FALSE, eval = TRUE}
+```{r, echo = FALSE, eval = FALSE}
 # Create a new dataset with new features
 data2 = map(.x = c(files_benign2, files_malignant2), .f = function(x){calc_feature_all(im = load.image(x), thr = "auto")}) %>%
   rbind_list() %>%
@@ -415,7 +399,7 @@ data2 = map(.x = c(files_benign2, files_malignant2), .f = function(x){calc_featu
 
   Based on the literature review, several shape and color features have been engineered with goal of capturing the essence of each skin cancer image. 
 
-  Before developing features, the skin lesion or the region of interest (ROI) was identified and the border of skin lesion was detected. Specifically, each image was converted to a grayscale image, which was then binarized by an automatically determined threshold. A grayscale pixel was converted to 1 if it exceeded the threshold and 0 if otherwise. This resulted in a black-and-white image where the black region represented the ROI and the white represented the background. An example of border detection is shown in **Fig.3**. 
+  Before developing features, the skin lesion or the region of interest (ROI) was identified and the border of skin lesion was detected. Specifically, each image was converted to a grayscale image, which was then binarized by an automatically determined threshold. A grayscale pixel was converted to 1 if it exceeded the threshold and 0 if otherwise. This resulted in a black-and-white image where the black region represented the ROI and the white represented the background. An example of border detection is shown in **Fig.7**. 
 
   Shape features such as perimeter and area were first engineered. Perimeter (P) of an ROI was defined as the number of pixels on the border and area (A) was defined as the number of pixels covering the entire ROI. On top of these 2 basic shape features, irregularity index ($I=\frac {P^2}{4\pi A}$) and compactness (the ratio between the area of the ROI and the area of a circle with the same perimeter as the ROI, $C = \frac {4\pi A}{P^2}$) were constructed (Celebi *et al.*, 2007; Golston, Stoecker, Moss, & Dhillon, 1992). 
 
@@ -423,10 +407,10 @@ data2 = map(.x = c(files_benign2, files_malignant2), .f = function(x){calc_featu
 
   In summary, a total of 22 features were engineered for each image including 4 shape features and 18 color features.
 
-```{r, eval = TRUE}
+```{r, eval = TRUE, out.width = "50%"}
 im_demo = load.image(file = str_subset(string = files_benign2, pattern = "108"))
 ROI = get_ROI(im = im_demo, thr = "auto") 
-show_border(im = im_demo, bool = ROI) %>% plot(main = "Fig.3 Demonstration of border detection.")
+show_border(im = im_demo, bool = ROI) %>% plot(main = "Fig.7 Demonstration of border detection.")
 ```
 
 ## Classification Models Based On New Features
@@ -439,7 +423,7 @@ tst_data2 = data2[-trn_idx, ]
 
 ### Tree Model
 
-```{r, echo = TRUE, eval = TRUE, cache = TRUE}
+```{r, echo = FALSE, eval = TRUE, cache = TRUE}
 # Tree
 set.seed(123)
 mod_cart = train(form = as.factor(y) ~ ., 
@@ -458,17 +442,21 @@ pred_cart = predict(object = mod_cart, newdata = tst_data2)
 result_cart = confusionMatrix(data = pred_cart, reference = as.factor(tst_y), positive = "m")
 ```
 
-  A single tree model was trained with the complexity parameter as the tuning parameter. 5-fold cross-validation was used to tune over such complexity parameter values as 0, 0.001, 0.005, 0.01, and 0.05. The cross validation result shows that the ROC was maximized when `cp` = `r mod_cart$bestTune` and thus this was chosen for the final tree model (**Fig.7**). The decision tree 
+  A single tree model was trained with the complexity parameter as the tuning parameter. 5-fold cross-validation was used to tune over such complexity parameter values as 0, 0.001, 0.005, 0.01, and 0.05. The cross validation result shows that the ROC was maximized when `cp` = `r mod_cart$bestTune` and thus this was chosen for the final tree model (**Fig.8**). The final model has an overall accuracy of `r result_cart$overall["Accuracy"]` with the sensitivity being `r result_cart$byClass["Sensitivity"]` and the specificity being `r result_cart$byClass["Specificity"]`. Evidently, this model has a probability of 62% to correctly classify a malignant mole at the cost of producing many false positives with a probability of 42%.
+  
+  A major advantage of using a tree model is that the insights on how classification is performed can be revealed by analyzing the decision tree (**Fig.9**). Clearly, perimeter played a major role in classification where a perimeter >= 662 pixels might lead to higher probability (69%) of having a malignant skin cancer. This is consistent with the “ABCD” rule in the literature that associates malignancy with a larger diameter. Further down the branch on the right, the mean values of the normalized blue and the green channel as well as the irregularity index were crucial for classification. Generally, a mole is classified as malignant with a probability of at least 71% when its image’s mean value of normalized blue channel is < 0.5 (which means darker in blue), its mean value of normalized green channel is >= 0.6 (which means brighter in green), and its irregularity index is >= 5.2. These decision rules are also consistent with the “ABCD” rule that color variegation, blue-white veil, and irregular border may indicate malignancy (Rigel et al., 2010). With the branch on the left, the standard deviations of hue and value were the driving forces for classification. Evidently, larger standard deviations of hue (>= 96) and value (>= 0.097) may lead to classifying a model as malignant with a probability of 69%. 
 
-```{r, eval = TRUE}
-plot(mod_cart, main = "Fig.7 Cross-validation of the tree model.")
-rpart.plot(x = mod_cart$finalModel, main = "Fig.8 The decision tree.")
+  In summary, our tree model may be beneficial to doctors who need assistance with rapid screening for malignant skin cancer as it provides easily-understandable decision rules and relatively satisfactory accuracy.  
+
+```{r, eval = TRUE, fig.keep = "hold", fig.height= 5,fig.width= 10, out.width = "80%"}
+plot(mod_cart, main = "Fig.8 Cross-validation of the tree model.")
+rpart.plot(x = mod_cart$finalModel, main = "Fig.9 The decision tree.")
 ```
 
 
 ### Logistic Regression with LASSO
 
-```{r, eval = TRUE, echo = FALSE}
+```{r, eval = TRUE, echo = FALSE, cache = TRUE}
 # logistic regression (lasso)
 feature_trn.x = as.matrix(data2[trn_idx, -1])
 feature_trn.y = as.matrix(data2[trn_idx, 1])
@@ -479,37 +467,40 @@ set.seed(123)
 feature.fit.glm = cv.glmnet(feature_trn.x, feature_trn.y, family = "binomial", alpha = 1)
 feature.pred.glm = factor(predict(feature.fit.glm, feature_tst.x, "lambda.min", type = "class"))
 result_lasso_feature = confusionMatrix(as.factor(feature_tst.y), feature.pred.glm, positive = 'm')
-feature.fit.glm$lambda.min
 
 # ROC 
 feature.pred.roc = prediction(predict(feature.fit.glm, feature_tst.x, "lambda.min"), labels = feature_tst.y)
 feature.perf = performance(feature.pred.roc,"tpr","fpr")
-plot(feature.perf, colorize=TRUE)
 
 # Non zero coefficient
 nonzeroCoef = (rownames(coef(feature.fit.glm, s = 'lambda.min'))[coef(feature.fit.glm, s = 'lambda.min')[,1] != 0])[-1] 
-nonzeroCoef
 df_coef = coef(feature.fit.glm, s = 'lambda.min')[as.numeric(which(coef(feature.fit.glm, s = 'lambda.min')[,1] != 0)),]
-kable(df_coef, col.names = "Coefficient", "latex", booktabs = T) %>%
-  kable_styling(position = "center")
 ```
 
 
- We again used 10-fold cross validation with logistic regression and set “m” (Malignant) as the positive level. We again let the function choose and tune the best tuning parameter, lambda. The lambda.min which achieves the minimum mean cross-validated error is `r fit.glm$lambda.min`, and we chose this lambda to validate the model. 
- 
-```{r, eval = TRUE}
-# log lambda vs. coefficients
-plot(feature.fit.glm$glmnet.fit, "lambda")
-abline(v = log10(feature.fit.glm$lambda.min), lty = "dashed", main = "Fig.")
-```
- 
+ We again used 10-fold cross validation with logistic regression and set “m” (Malignant) as the positive level. We again let the function choose and tune the best tuning parameter, lambda. The lambda.min which achieves the minimum cross-validated error is `r fit.glm$lambda.min`, and we chose this lambda to validate the model (**Fig.10**). 
 
- The accuracy of predicting the tumor for the testing data was `r result_lasso_feature$overall["Accuracy"]`, a little higher than that in Question 1. Both sensitivity and specificity increased compared to those in Question 1. The ROC plot also showed a more desired curve indicating the sensitivity and specificity. By looking at these statistics, we assumed that the feature engineering process successfully helped increase the accuracy of identifying tumors. 
+ The accuracy of predicting the tumor for the testing data was `r result_lasso_feature$overall["Accuracy"]`, a little higher than that in Question 1. Both sensitivity and specificity increased compared to those in Question 1. The ROC plot also showed a more desired curve indicating the sensitivity and specificity. By looking at these statistics, we assumed that the feature engineering process successfully helped increase the accuracy of identifying tumors (**Fig.11**). 
  Lasso helped us to do variable selection. Under the lambda we chose, only 9 out of the 22 features had nonzero coefficients and thus contributed to the final identification. They are "perimeter”, ”area”, “compactness”, “mean.B”, “sd.B”, ”mean.H”, "sd.H”, “sd.S” and “sd.V”. Then we took a deeper look at their individual coefficients. We surprisedly found that the coefficients of mean.B (mean value of blue channel) and sd.S (standard deviation of saturation) had much more lower coefficients than any one else, and both coefficients were negative. This meant, when the mean value of the blue channel  or the standard deviation of the saturation value of a mole was high, then the mole was much more likely to be a benign one. The third feature with relatively significant coefficient was compactness (ratio between the area of the mole and the area of the circle with the same parimeter), with coefficient about -3, which indicated that higher compactness of the mole contributed to a higher probability of being benign.
+
+```{r, eval = TRUE, fig.keep = "hold", fig.height= 5,fig.width= 10, out.width = "80%"}
+# Nonzero
+kable_styling(kable(df_coef, col.names = "Coefficient", format = "latex", caption = "Nonzero coefficients of the logistic regression with LASSO model.",booktabs = T), position = "center", latex_options = "hold_position")
+
+# log lambda vs. coefficients
+par(mfrow = c(1,2),mar = c(5,4,6,2))
+plot(feature.fit.glm$glmnet.fit, "lambda", main = "Fig.10 Coefficients VS lambda.")
+abline(v = log10(feature.fit.glm$lambda.min), lty = "dashed")
+
+# ROC
+plot(feature.perf, colorize=TRUE, main = "Fig.11 ROC curve of the logistic regression with LASSO model.")
+```
+
+
 
 # References
 
-Celebi, M. E., Kingravi, H. A., Iyatomi, H., Aslandogan, Y. A., Stoecker, W. V., Moss, R. H., … Menzies, S. W. (2008). Border detection in dermoscopy images using statistical region merging. Skin Research and Technology : Official Journal of International Society for Bioengineering and the Skin (ISBS) [and] International Society for Digital Imaging of Skin (ISDIS) [and] International Society for Skin Imaging (ISSI), 14(3), 347–353. https://doi.org/10.1111/j.1600-0846.2008.00301.x
+Celebi, M. E., Kingravi, H. A., Iyatomi, H., Aslandogan, Y. A., Stoecker, W. V., Moss, R. H., … Menzies, S. W. (2008). Border detection in dermoscopy images using statistical region merging. Skin Research and Technology: Official Journal of International Society for Bioengineering and the Skin (ISBS) [and] International Society for Digital Imaging of Skin (ISDIS) [and] International Society for Skin Imaging (ISSI), 14(3), 347–353. https://doi.org/10.1111/j.1600-0846.2008.00301.x
 
 Celebi, M. E., Kingravi, H. A., Uddin, B., Iyatomi, H., Aslandogan, Y. A., Stoecker, W. V., & Moss, R. H. (2007). A methodological approach to the classification of dermoscopy images. Computerized Medical Imaging and Graphics, 31(6), 362–373. https://doi.org/10.1016/j.compmedimag.2007.01.003
 
@@ -525,54 +516,3 @@ Masood, A., & Al-Jumaily, A. A. (2013). Computer Aided Diagnostic Support System
 
 Rigel, D. S., Russak, J., & Friedman, R. (2010). The evolution of melanoma diagnosis: 25 years beyond the ABCDs. CA: A Cancer Journal for Clinicians, 60(5), 301–316. https://doi.org/10.3322/caac.20074
 
-```{r}
-####################################### Unused code
-# Adaboost
-set.seed(123)
-mod_ada = train(x = trn_data, 
-                y = as.factor(trn_y), 
-                method = "AdaBoost.M1", 
-                preProcess = "pca", 
-                metric = "ROC",
-                trControl = trainControl(method = "cv", number = 10, classProbs = TRUE, summaryFunction = twoClassSummary))
-# Adaboost
-plot(mod_ada)
-mod_ada$bestTune
-
-tst_data_pca = prcomp(x = tst_data, center = TRUE, scale. = TRUE)$x
-pred_ada = predict(object = mod_ada$finalModel, newdata = as.data.frame(tst_data_pca))
-result_ada = confusionMatrix(data = as.factor(pred_ada$class), reference = as.factor(tst_y), positive = "m")
-
-# Penalized logistic regression
-set.seed(123)
-mod_plr2 = train(form = y ~ ., 
-                 data = trn_data2,
-                  method = "plr", 
-                  preProcess = NULL, 
-                  metric = "ROC",
-                  trControl = trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction = twoClassSummary), 
-                 tuneGrid = expand.grid(lambda = c(1e-5, 1e-4, 1e-3), cp = c("aic", "bic")))
-
-pred_plr2 = predict(object = mod_plr2$finalModel, newdata = tst_data2)
-confusionMatrix(data = pred_plr2, reference = as.factor(tst_y), positive = "m")
-
-summary(mod_plr2$finalModel)
-corrplot::corrplot(corr = cor(data2[,-1]))
-```
-
-```{r, eval = FALSE}
-# Random forest
-set.seed(123)
-mod_rf2 = train(form = y ~ ., 
-                data = trn_data2,
-                method = "rf", 
-                preProcess = NULL, 
-                metric = "ROC",
-                trControl = trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction = twoClassSummary), 
-                tuneGrid = expand.grid(mtry = c(2, round(sqrt(ncol(trn_data2))), 12, 22)))
-
-pred_rf = predict(object = mod_rf2, newdata = tst_data2)
-confusionMatrix(data = pred_rf, reference = as.factor(tst_y), positive = "m")
-
-plot(varImp(object = mod_rf2, scale = TRUE))
-```
